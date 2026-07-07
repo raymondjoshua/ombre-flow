@@ -86,25 +86,45 @@ const LoginGateway = ({ onLogin, allUsers, createAdmin }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        setIsSetup(allUsers.length === 0);
-    }, [allUsers]);
+useEffect(() => {
+    if (!firebaseUser) return;
 
-    const handleLogin = (e) => {
-        e.preventDefault();
-        setError('');
-        if (isSetup) {
-            if (!username || !password) { setError('Please fill all fields'); return; }
-            createAdmin(username, password);
-        } else {
-            const user = allUsers.find(u => u.username === username && u.password === password);
-            if (user) {
-                onLogin(user);
-            } else {
-                setError('Invalid username or password');
-            }
-        }
-    };
+    // Use a flatter path to avoid deep nesting issues
+    const usersRef = collection(db, 'users');
+    const boardRef = collection(db, 'board');
+    const notifRef = collection(db, 'notifications');
+
+    const unsubUsers = onSnapshot(usersRef, (snapshot) => {
+        const fetchedUsers = snapshot.docs.map(doc => ({ ...doc.data() }));
+        setAllUsers(fetchedUsers);
+    }, (err) => console.error(err));
+
+    const unsubBoard = onSnapshot(boardRef, async (snapshot) => {
+      const fetchedLists = snapshot.docs.map(doc => ({ ...doc.data() }));
+      
+      if (fetchedLists.length === 0 && !seeded.current) {
+         seeded.current = true;
+         for (let i = 0; i < initialDataTemplate.length; i++) {
+            await setDoc(doc(boardRef, initialDataTemplate[i].id), initialDataTemplate[i]);
+         }
+         return; 
+      }
+      
+      fetchedLists.sort((a, b) => a.position - b.position);
+      setData(fetchedLists);
+      setIsLoading(false);
+    }, (error) => {
+      console.error(error);
+      setIsLoading(false);
+    });
+
+    const unsubNotif = onSnapshot(notifRef, (snapshot) => {
+        const fetchedNotifs = snapshot.docs.map(doc => ({ ...doc.data() })).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+        setNotifications(fetchedNotifs);
+    }, (err) => console.error(err));
+    
+    return () => { unsubUsers(); unsubBoard(); unsubNotif(); };
+  }, [firebaseUser]);
 
     return (
         <div className="h-screen flex items-center justify-center bg-[#050505] text-slate-200 relative overflow-hidden">
@@ -495,24 +515,28 @@ const Dashboard = ({ data, allUsers }) => {
     );
 };
 
-const TeamManager = ({ allUsers, updateUsersInCloud }) => {
-    const [newUsername, setNewUsername] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [newName, setNewName] = useState('');
+const updateUsersInCloud = async (newUser) => {
+      if (!firebaseUser || currentUser?.role !== 'admin') return;
+      const userRef = doc(db, 'users', newUser.id);
+      await setDoc(userRef, newUser);
+  };
 
-    const handleCreateUser = () => {
-        if (!newUsername || !newPassword || !newName) return;
-        const newUser = {
-            id: `user-${Date.now()}`,
-            username: newUsername.trim(),
-            password: newPassword.trim(),
-            name: newName.trim(),
-            role: 'user',
-            avatarColor: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]
-        };
-        updateUsersInCloud(newUser);
-        setNewUsername(''); setNewPassword(''); setNewName('');
-    };
+  const updateListInCloud = async (updatedList) => {
+    if (!firebaseUser || !currentUser) return;
+    setData(prev => prev.map(l => l.id === updatedList.id ? updatedList : l));
+    const listRef = doc(db, 'board', updatedList.id);
+    await setDoc(listRef, updatedList);
+  };
+
+  const createNotification = async (type, title, message, targetUserId) => {
+      if (!firebaseUser) return;
+      const notif = {
+          id: `notif-${Date.now()}`, type, title, message, targetUserId,
+          read: false, timestamp: new Date().toISOString()
+      };
+      const notifRef = doc(db, 'notifications', notif.id);
+      await setDoc(notifRef, notif);
+  };
 
     return (
         <div className="animate-in fade-in duration-300 w-full max-w-4xl mx-auto space-y-8 pb-10">

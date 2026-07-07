@@ -5,14 +5,12 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCGD4D0CFxvqb-6W8315-8VLR9GI0UEgzY",
+  apiKey: "AIzaSyYourRealKeyHere...",
   authDomain: "ombre-flow.firebaseapp.com",
   projectId: "ombre-flow",
-  storageBucket: "ombre-flow.firebasestorage.app",
-  messagingSenderId: "734245229782",
-  appId: "1:734245229782:web:4095c61d4a26661ea42577",
-  measurementId: "G-WLSM1FJ59D"
-
+  storageBucket: "ombre-flow.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:123456789:web:abcdefg12345"
 };
 const app = initializeApp(firebaseConfig);
 const appId = "ombre-production"; // Or whatever you want to call your database collection path

@@ -1,7 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Add this temporary fix:
+    {
+      name: 'close-bundle',
+      closeBundle: () => {
+        process.exit(0);
+      }
+    }
+  ],
 })
